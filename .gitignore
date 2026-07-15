@@ -1,0 +1,20 @@
+node_modules
+.next
+.vercel
+out
+
+# env files
+.env
+.env.local
+.env.*.local
+
+# local dev data fallback (no KV configured)
+.data
+
+# logs
+npm-debug.log*
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
