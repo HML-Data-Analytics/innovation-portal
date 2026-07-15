@@ -2,8 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { addApp, getApps } from '@/lib/data';
 
 export async function GET() {
-  const apps = await getApps();
-  return NextResponse.json({ apps });
+  try {
+    const apps = await getApps();
+    return NextResponse.json({ apps });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to load apps' },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -16,6 +23,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'name and url are required' }, { status: 400 });
   }
 
-  const app = await addApp({ name, url, iconUrl });
-  return NextResponse.json({ app }, { status: 201 });
+  try {
+    const app = await addApp({ name, url, iconUrl });
+    return NextResponse.json({ app }, { status: 201 });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to add app' },
+      { status: 500 }
+    );
+  }
 }

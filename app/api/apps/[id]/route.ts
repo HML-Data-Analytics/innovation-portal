@@ -12,17 +12,31 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   if (typeof body.url === 'string') update.url = body.url.trim();
   if (typeof body.iconUrl === 'string') update.iconUrl = body.iconUrl.trim();
 
-  const app = await updateApp(params.id, update);
-  if (!app) {
-    return NextResponse.json({ error: 'App not found' }, { status: 404 });
+  try {
+    const app = await updateApp(params.id, update);
+    if (!app) {
+      return NextResponse.json({ error: 'App not found' }, { status: 404 });
+    }
+    return NextResponse.json({ app });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to update app' },
+      { status: 500 }
+    );
   }
-  return NextResponse.json({ app });
 }
 
 export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
-  const ok = await deleteApp(params.id);
-  if (!ok) {
-    return NextResponse.json({ error: 'App not found' }, { status: 404 });
+  try {
+    const ok = await deleteApp(params.id);
+    if (!ok) {
+      return NextResponse.json({ error: 'App not found' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Failed to delete app' },
+      { status: 500 }
+    );
   }
-  return NextResponse.json({ success: true });
 }

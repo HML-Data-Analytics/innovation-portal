@@ -64,14 +64,20 @@ export default function AdminPage() {
             ...(uploadedIconUrl ? { iconUrl: uploadedIconUrl } : {}),
           }),
         });
-        if (!res.ok) throw new Error('Failed to update app');
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Failed to update app');
+        }
       } else {
         const res = await fetch('/api/apps', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, url, iconUrl: uploadedIconUrl || '' }),
         });
-        if (!res.ok) throw new Error('Failed to add app');
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Failed to add app');
+        }
       }
 
       resetForm();

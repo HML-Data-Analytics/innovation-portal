@@ -24,10 +24,23 @@ function writeLocal(apps: AppItem[]): void {
   fs.writeFileSync(LOCAL_FILE, JSON.stringify(apps, null, 2));
 }
 
+function assertLocalFallbackIsUsable(): void {
+  // Vercel's serverless functions have a read-only filesystem outside /tmp,
+  // so the local-JSON fallback can't work there. Fail with a clear message
+  // instead of throwing a confusing fs error deep in a write call.
+  if (process.env.VERCEL) {
+    throw new Error(
+      'No data store configured: attach a Vercel KV store to this project (Storage tab) ' +
+        'and redeploy. The local JSON file fallback only works in local development.'
+    );
+  }
+}
+
 export async function getApps(): Promise<AppItem[]> {
   if (useKv) {
     return (await kv.get<AppItem[]>(KV_KEY)) ?? [];
   }
+  assertLocalFallbackIsUsable();
   return readLocal();
 }
 
@@ -36,6 +49,7 @@ export async function saveApps(apps: AppItem[]): Promise<void> {
     await kv.set(KV_KEY, apps);
     return;
   }
+  assertLocalFallbackIsUsable();
   writeLocal(apps);
 }
 

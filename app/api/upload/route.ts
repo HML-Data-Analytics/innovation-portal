@@ -17,10 +17,27 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Image must be under 2MB' }, { status: 400 });
   }
 
-  const blob = await put(`icons/${Date.now()}-${file.name}`, file, {
-    access: 'public',
-    addRandomSuffix: true,
-  });
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return NextResponse.json(
+      {
+        error:
+          'No Blob store configured: attach a Vercel Blob store to this project ' +
+          '(Storage tab) and redeploy.',
+      },
+      { status: 500 }
+    );
+  }
 
-  return NextResponse.json({ url: blob.url });
+  try {
+    const blob = await put(`icons/${Date.now()}-${file.name}`, file, {
+      access: 'public',
+      addRandomSuffix: true,
+    });
+    return NextResponse.json({ url: blob.url });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Icon upload failed' },
+      { status: 500 }
+    );
+  }
 }
