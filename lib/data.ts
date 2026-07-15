@@ -1,14 +1,15 @@
-import { kv } from '@vercel/kv';
+import { list, put } from '@vercel/blob';
 import fs from 'fs';
 import path from 'path';
 import type { AppItem } from './types';
 
-const KV_KEY = 'innovation-apps:list';
+const BLOB_PATHNAME = 'data/apps.json';
 const LOCAL_FILE = path.join(process.cwd(), '.data', 'apps.json');
 
-// Uses Vercel KV in production. Falls back to a local JSON file so the app
-// runs out of the box in local dev without any KV store configured.
-const useKv = Boolean(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+// Uses Vercel Blob in production (the same store used for icon uploads) to
+// hold the app list as a single JSON file. Falls back to a local JSON file
+// so the app runs out of the box in local dev without any store configured.
+const useBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
 
 function readLocal(): AppItem[] {
   try {
@@ -30,23 +31,41 @@ function assertLocalFallbackIsUsable(): void {
   // instead of throwing a confusing fs error deep in a write call.
   if (process.env.VERCEL) {
     throw new Error(
-      'No data store configured: attach a Vercel KV store to this project (Storage tab) ' +
+      'No data store configured: attach a Vercel Blob store to this project (Storage tab) ' +
         'and redeploy. The local JSON file fallback only works in local development.'
     );
   }
 }
 
+async function readBlob(): Promise<AppItem[]> {
+  const { blobs } = await list({ prefix: BLOB_PATHNAME, limit: 1 });
+  const match = blobs.find((blob) => blob.pathname === BLOB_PATHNAME);
+  if (!match) return [];
+  const res = await fetch(match.url, { cache: 'no-store' });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+async function writeBlob(apps: AppItem[]): Promise<void> {
+  await put(BLOB_PATHNAME, JSON.stringify(apps, null, 2), {
+    access: 'public',
+    contentType: 'application/json',
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  });
+}
+
 export async function getApps(): Promise<AppItem[]> {
-  if (useKv) {
-    return (await kv.get<AppItem[]>(KV_KEY)) ?? [];
+  if (useBlob) {
+    return readBlob();
   }
   assertLocalFallbackIsUsable();
   return readLocal();
 }
 
 export async function saveApps(apps: AppItem[]): Promise<void> {
-  if (useKv) {
-    await kv.set(KV_KEY, apps);
+  if (useBlob) {
+    await writeBlob(apps);
     return;
   }
   assertLocalFallbackIsUsable();

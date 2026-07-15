@@ -17,18 +17,19 @@ straight to Vercel.
 - **SharePoint-ready** — sends a `Content-Security-Policy: frame-ancestors`
   header (see `next.config.js`) so the app can be embedded in a SharePoint
   page via the **Embed** web part, instead of being blocked by browsers.
-- **Data storage** — app shortcuts are stored in [Vercel KV](https://vercel.com/docs/storage/vercel-kv)
-  in production, with an automatic local-JSON-file fallback for development
-  when no KV store is configured.
-- **Icon uploads** — icons are uploaded to [Vercel Blob](https://vercel.com/docs/storage/vercel-blob)
-  storage and served from a public URL.
+- **Data storage** — app shortcuts and icons are both stored in
+  [Vercel Blob](https://vercel.com/docs/storage/vercel-blob): the app list
+  lives as a single JSON file (`data/apps.json`) in the same Blob store used
+  for icon uploads, with an automatic local-JSON-file fallback for
+  development when no Blob store is configured. (Vercel's native "KV"
+  product was moved to a separate Marketplace/Upstash integration, so this
+  app avoids that extra dependency and uses Blob for everything.)
 
 ## Tech stack
 
 - [Next.js 14](https://nextjs.org/) (App Router) + TypeScript
 - [Tailwind CSS](https://tailwindcss.com/)
-- [@vercel/kv](https://www.npmjs.com/package/@vercel/kv) for app data
-- [@vercel/blob](https://www.npmjs.com/package/@vercel/blob) for icon uploads
+- [@vercel/blob](https://www.npmjs.com/package/@vercel/blob) for both app data (`data/apps.json`) and icon uploads
 
 ## Project structure
 
@@ -51,7 +52,7 @@ components/
   AppCard.tsx                Public shortcut tile
   icons.tsx                  Inline SVG icons
 lib/
-  data.ts                    App data access (Vercel KV or local JSON fallback)
+  data.ts                    App data access (Vercel Blob or local JSON fallback)
   auth.ts                    Session cookie signing/verification (Web Crypto)
   types.ts                   Shared TypeScript types
 middleware.ts                 Protects /admin/* and mutating /api/* routes
@@ -71,10 +72,10 @@ middleware.ts                 Protects /admin/* and mutating /api/* routes
    cp .env.example .env.local
    ```
 
-   Without `KV_REST_API_URL` / `KV_REST_API_TOKEN` set, app data is stored in
-   `.data/apps.json` locally (git-ignored) — no external service needed to
-   develop. Icon uploads require `BLOB_READ_WRITE_TOKEN` to be set even
-   locally (pull it from Vercel once the Blob store is attached — see below).
+   Without `BLOB_READ_WRITE_TOKEN` set, app data is stored in `.data/apps.json`
+   locally (git-ignored) — no external service needed to develop. Icon
+   uploads always require `BLOB_READ_WRITE_TOKEN` to be set, even locally
+   (pull it from Vercel once the Blob store is attached — see below).
 
 3. Run the dev server:
 
@@ -89,12 +90,10 @@ middleware.ts                 Protects /admin/* and mutating /api/* routes
 
 1. Push this folder to a Git repository (see **Git setup** below) and
    [import it into Vercel](https://vercel.com/new).
-2. In the Vercel project, go to **Storage** and:
-   - Create/attach a **KV** database — this auto-populates
-     `KV_REST_API_URL`, `KV_REST_API_TOKEN`, and
-     `KV_REST_API_READ_ONLY_TOKEN` as project env vars.
-   - Create/attach a **Blob** store — this auto-populates
-     `BLOB_READ_WRITE_TOKEN`.
+2. In the Vercel project, go to **Storage** and create/attach a **Blob**
+   store — this auto-populates `BLOB_READ_WRITE_TOKEN` as a project env var.
+   This one store is used for both the app list and icon uploads, so it's
+   the only storage you need to set up.
 3. In **Settings → Environment Variables**, add:
    - `ADMIN_PASSWORD` — the password admins use to sign in to `/admin`.
    - `SHAREPOINT_DOMAIN` — your SharePoint tenant origin, e.g.
